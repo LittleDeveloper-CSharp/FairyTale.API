@@ -1,5 +1,4 @@
 ﻿using FairyTale.API.Data;
-using FairyTale.API.Models;
 using FairyTale.API.Models.DTOs.DwarfDTOs;
 using FairyTale.API.Models.Enums;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -43,10 +42,12 @@ namespace FairyTale.API.Controllers
                 return StatusCode(StatusCodes.Status400BadRequest);
             }
 
+            var snowWhiteId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
+
             _context.Dwarfs.Add(new Models.Dwarf
             {
                 Name = model.Name,
-                SnowWhiteId = model.SnowWhiteId,
+                SnowWhiteId = snowWhiteId,
                 Class = model.Class
             });
 
@@ -87,34 +88,34 @@ namespace FairyTale.API.Controllers
             return StatusCode(StatusCodes.Status204NoContent);
         }
 
-        [HttpGet("classes")]
-        public IActionResult GetDwarfClasses()
+        [HttpGet("types")]
+        public IActionResult GetTypes()
         {
-            var types = Enum.GetValues<DwarfClass>();
-            return Ok(types.Select(x=> new
+            var classes = Enum.GetValues<DwarfClass>();
+
+            return Ok(classes.Select(x => new
             {
                 Id = (int)x,
-                Name = x.ToString(),
+                Name = x.ToString()
             }));
         }
 
-        [HttpHead("{id}/moved-to")]
-        public async Task<IActionResult> CreateRequst(int id)
+        [HttpHead("{id}/move-to")]
+        public async Task<IActionResult> CreateRequest(int id)
         {
-            var userId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
-            var requestExists = await _context.Requests.AnyAsync(x=> x.CreatedRequestSnowWhiteId == userId && x.DwarfId == id && !x.IsClosed);
-            if (requestExists)
-                return Forbid();
-
-            var dwarf = await _context.Dwarfs.SingleOrDefaultAsync(x => x.Id == id);
+            var dwarf = await _context.Dwarfs.FirstOrDefaultAsync(x => id == x.Id);
+            var snowWhiteId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
             if (dwarf == null)
                 return NotFound();
 
-            _context.Add(new DwarfTransferRequest
+            if (dwarf.SnowWhiteId == snowWhiteId)
+                return BadRequest();
+
+            _context.Requests.Add(new Models.DwarfTransferRequest
             {
-                CreatedRequestSnowWhiteId = userId,
-                DwarfId = dwarf.Id,
-                DungeonMasterSnowWhiteId = dwarf.SnowWhiteId
+                DungeonMasterSnowWhiteId = dwarf.SnowWhiteId,
+                CreatedRequestSnowWhiteId = snowWhiteId,
+                DwarfId = dwarf.Id
             });
 
             await _context.SaveChangesAsync();

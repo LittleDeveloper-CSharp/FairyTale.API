@@ -27,10 +27,10 @@ namespace FairyTale.API.Controllers
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<SnowWhiteDTO>))]
         public async Task<IActionResult> Get()
         {
-            var userId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
+            var snowWhiteId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
 
             return new JsonResult(await _context.SnowWhites
-                .Where(x=> x.Id != userId)
+                .Where(x=> x.Id != snowWhiteId)
                 .Select(x => new SnowWhiteDTO
                 {
                     FullName = x.FullName,
@@ -59,19 +59,14 @@ namespace FairyTale.API.Controllers
         [HttpPut]
         public async Task<IActionResult> Edit(SnowWhiteEditDTO model)
         {
-            var userId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
+            var snowWhiteId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
 
-            if (userId != model.Id)
-                return Forbid();
-
-            var snowWhite = await _context.SnowWhites.SingleOrDefaultAsync(x => x.Id == model.Id);
-            if (snowWhite == null)
-                return StatusCode(StatusCodes.Status404NotFound);
-
-            var snowWhiteExists = await _context.SnowWhites.AnyAsync(x => x.Id != model.Id && x.FullName == model.FullName);
+            var snowWhiteExists = await _context.SnowWhites.AnyAsync(x => x.Id != snowWhiteId && x.FullName == model.FullName);
 
             if (snowWhiteExists)
                 return StatusCode(StatusCodes.Status404NotFound);
+
+            var snowWhite = await _context.SnowWhites.SingleAsync(x => x.Id == snowWhiteId);
 
             snowWhite.FullName = model.FullName;
 
@@ -85,8 +80,8 @@ namespace FairyTale.API.Controllers
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(DwarfDTO))]
         public async Task<IActionResult> GetDwarfs()
         {
-            var userId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
-            var dwarves = await _context.Dwarfs.Where(x => x.SnowWhiteId == userId)
+            var snowWhiteId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
+            var dwarves = await _context.Dwarfs.Where(x => x.SnowWhiteId == snowWhiteId)
                 .Select(x => new DwarfDTO
                 {
                     Id = x.Id,
@@ -101,8 +96,8 @@ namespace FairyTale.API.Controllers
         [HttpGet("requests")]
         public async Task<IActionResult> GetRequests()
         {
-            var userId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
-            var requests = await _context.Requests.Where(x => x.DungeonMasterSnowWhiteId == userId)
+            var snowWhiteId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
+            var requests = await _context.Requests.Where(x => x.DungeonMasterSnowWhiteId == snowWhiteId)
                 .Select(x => new RequestDTO
                 {
                     Id = x.Id,
@@ -117,14 +112,14 @@ namespace FairyTale.API.Controllers
         [HttpHead("requests/{requestId}/answer")]
         public async Task<IActionResult> AnswerRequest(int requestId, bool accept)
         {
-            var userId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
+            var snowWhiteId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
             var request = await _context.Requests.SingleOrDefaultAsync(x => x.Id == requestId);
             if (request == null)
                 return NotFound();
 
             var dwarf = await _context.Dwarfs.SingleAsync(x => x.Id == request.DwarfId);
 
-            if (userId != dwarf.SnowWhiteId || request.IsClosed)
+            if (snowWhiteId != dwarf.SnowWhiteId || request.IsClosed)
                 return Forbid();
 
             request.IsClosed = true;
@@ -134,7 +129,16 @@ namespace FairyTale.API.Controllers
             if (!accept)
                 return Ok();
 
-            dwarf.SnowWhiteId = request.CreatedRequestSnowWhiteId.Value;
+            var requests = await _context.Requests.Where(x => x.DwarfId == dwarf.Id && x.IsClosed)
+                .ToArrayAsync();
+            Array.ForEach(requests, x =>
+            {
+                x.IsClosed = true;
+            });
+
+            dwarf.SnowWhiteId = request.CreatedRequestSnowWhiteId.Value; 
+            
+            _context.UpdateRange(requests);
             _context.Update(dwarf);
             
             await _context.SaveChangesAsync();

@@ -38,7 +38,7 @@ namespace FairyTale.API.Controllers
 
                 var identity = new List<Claim>
                 {
-                    new Claim(ClaimsIdentity.DefaultNameClaimType, user.Id.ToString()),
+                    new Claim(ClaimsIdentity.DefaultNameClaimType, user.SnowWhiteId.ToString()),
                 };
 
                 var now = DateTime.UtcNow;

@@ -19,13 +19,6 @@ namespace FairyTale.API.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<SnowWhite>()
-                .HasData(new SnowWhite
-                {
-                    Id = 1,
-                    FullName = "Белоснежка"
-                });
-
             base.OnModelCreating(modelBuilder);
         }
     }

@@ -6,8 +6,6 @@ namespace FairyTale.API.Models.DTOs.DwarfDTOs
     {
         public string Name { get; set; }
 
-        public int SnowWhiteId { get; set; }
-
         public DwarfClass Class { get; set; }
     }
 }

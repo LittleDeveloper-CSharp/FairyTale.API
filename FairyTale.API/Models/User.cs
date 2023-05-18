@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace FairyTale.API.Models
 {
@@ -11,6 +12,9 @@ namespace FairyTale.API.Models
 
         public string Password { get; set; }
 
-        public SnowWhite SnowWhite { get; set; }
+        public int SnowWhiteId { get; set; }
+
+        [ForeignKey(nameof(SnowWhiteId))]
+        public virtual SnowWhite SnowWhite { get; set; }
     }
 }

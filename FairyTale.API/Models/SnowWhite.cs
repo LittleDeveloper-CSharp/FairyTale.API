@@ -10,6 +10,9 @@ namespace FairyTale.API.Models
     
         public string FullName { get; set; }
 
+        [InverseProperty(nameof(Models.User.SnowWhite))]
+        public User User { get; set; }
+
         [InverseProperty(nameof(Dwarf.SnowWhite))]
         public ICollection<Dwarf> Dwarfs { get; set; } = new HashSet<Dwarf>();
 
