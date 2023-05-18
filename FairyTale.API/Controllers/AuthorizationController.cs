@@ -1,7 +1,9 @@
-﻿using FairyTale.API.Models.DTOs;
+﻿using FairyTale.API.Data;
+using FairyTale.API.Models.DTOs;
 using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -13,23 +15,31 @@ namespace FairyTale.API.Controllers
     [ApiController]
     public class AuthorizationController : ControllerBase
     {
-        private const string _login = "admin";
-        private const string _password = "password";
+        private readonly ApplicationDbContext _context;
 
-        [HttpPost]
+        public AuthorizationController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDTO model)
         {
             try
             {
-                if (model.Login != _login && model.Password != _password)
+                var user = await _context.Users
+                    .Include(x=> x.SnowWhite)
+                    .SingleOrDefaultAsync(x=> x.Password == model.Password && x.Login == x.Login);
+
+                if (user == null)
                 {
                     return StatusCode(StatusCodes.Status403Forbidden);
                 }
 
                 var identity = new List<Claim>
-            {
-                new Claim(ClaimsIdentity.DefaultNameClaimType, _login)
-            };
+                {
+                    new Claim(ClaimsIdentity.DefaultNameClaimType, user.Id.ToString()),
+                };
 
                 var now = DateTime.UtcNow;
                 // создаем JWT-токен
@@ -44,7 +54,7 @@ namespace FairyTale.API.Controllers
                 var response = new
                 {
                     access_token = encodedJwt,
-                    username = _login
+                    snowWhiteId = user.SnowWhite.Id
                 };
 
                 return new JsonResult(response);
@@ -53,6 +63,31 @@ namespace FairyTale.API.Controllers
             {
                 return new JsonResult(ex.Message);
             }
+        }
+
+        [HttpPost("registation")]
+        public async Task<IActionResult> Registration(RegistrationDTO registration)
+        {
+            if(!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var userExists = await _context.Users.AnyAsync(x=> x.Login == registration.Login);
+            if (userExists)
+                return StatusCode(StatusCodes.Status402PaymentRequired);
+
+            _context.Users.Add(new Models.User
+            {
+                Login = registration.Login,
+                Password = registration.Password,
+                SnowWhite = new Models.SnowWhite
+                {
+                    FullName = registration.FullName
+                }
+            });
+
+            await _context.SaveChangesAsync();
+
+            return Ok();
         }
     }
 }

@@ -1,9 +1,12 @@
 ﻿using FairyTale.API.Data;
+using FairyTale.API.Models;
 using FairyTale.API.Models.DTOs.DwarfDTOs;
+using FairyTale.API.Models.Enums;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace FairyTale.API.Controllers
 {
@@ -82,6 +85,41 @@ namespace FairyTale.API.Controllers
             await _context.SaveChangesAsync();
 
             return StatusCode(StatusCodes.Status204NoContent);
+        }
+
+        [HttpGet("classes")]
+        public IActionResult GetDwarfClasses()
+        {
+            var types = Enum.GetValues<DwarfClass>();
+            return Ok(types.Select(x=> new
+            {
+                Id = (int)x,
+                Name = x.ToString(),
+            }));
+        }
+
+        [HttpHead("{id}/moved-to")]
+        public async Task<IActionResult> CreateRequst(int id)
+        {
+            var userId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
+            var requestExists = await _context.Requests.AnyAsync(x=> x.CreatedRequestSnowWhiteId == userId && x.DwarfId == id && !x.IsClosed);
+            if (requestExists)
+                return Forbid();
+
+            var dwarf = await _context.Dwarfs.SingleOrDefaultAsync(x => x.Id == id);
+            if (dwarf == null)
+                return NotFound();
+
+            _context.Add(new DwarfTransferRequest
+            {
+                CreatedRequestSnowWhiteId = userId,
+                DwarfId = dwarf.Id,
+                DungeonMasterSnowWhiteId = dwarf.SnowWhiteId
+            });
+
+            await _context.SaveChangesAsync();
+
+            return Ok();
         }
     }
 }

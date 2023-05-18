@@ -15,6 +15,8 @@ namespace FairyTale.API.Data
 
         public DbSet<DwarfTransferRequest> Requests { get; set; }
 
+        public DbSet<User> Users { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<SnowWhite>()

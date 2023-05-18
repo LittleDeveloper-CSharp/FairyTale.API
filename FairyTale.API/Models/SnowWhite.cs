@@ -12,5 +12,9 @@ namespace FairyTale.API.Models
 
         [InverseProperty(nameof(Dwarf.SnowWhite))]
         public ICollection<Dwarf> Dwarfs { get; set; } = new HashSet<Dwarf>();
+
+        public ICollection<DwarfTransferRequest> Requests { get; set; } = new HashSet<DwarfTransferRequest>();
+
+        public ICollection<DwarfTransferRequest> CreatedRequests { get; set; } = new HashSet<DwarfTransferRequest>();
     }
 }

@@ -1,12 +1,13 @@
 ﻿using FairyTale.API.Data;
 using FairyTale.API.Models;
+using FairyTale.API.Models.DTOs;
 using FairyTale.API.Models.DTOs.DwarfDTOs;
 using FairyTale.API.Models.DTOs.SnowWhiteDTOs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace FairyTale.API.Controllers
 {
@@ -26,56 +27,43 @@ namespace FairyTale.API.Controllers
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<SnowWhiteDTO>))]
         public async Task<IActionResult> Get()
         {
-            var snowWhite = await _context.SnowWhites.FirstOrDefaultAsync();
+            var userId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
 
-            return new JsonResult(new SnowWhiteDTO
-            {
-                FullName = snowWhite.FullName,
-                Id = snowWhite.Id
-            });
+            return new JsonResult(await _context.SnowWhites
+                .Where(x=> x.Id != userId)
+                .Select(x => new SnowWhiteDTO
+                {
+                    FullName = x.FullName,
+                    Id = x.Id,
+                }).ToArrayAsync());
         }
 
-        [HttpGet("{id}/dwarfs")]
+        [HttpGet("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(SnowWhiteDetailsDTO))]
-        public async Task<IActionResult> GetDetails(int id)
+        public async Task<IActionResult> Get(int id)
         {
-            var snowWhite = await _context.SnowWhites
+            return new JsonResult(await _context.SnowWhites
                 .Select(x => new SnowWhiteDetailsDTO
                 {
                     FullName = x.FullName,
                     Id = x.Id,
-                    Dwarves = x.Dwarfs.Select(x=> new DwarfDTO
+                    Dwarves = x.Dwarfs.Select(x => new DwarfDTO
                     {
+                        Class = x.Class,
                         Id = x.Id,
                         Name = x.Name,
                     })
-                })
-                .SingleOrDefaultAsync(x => x.Id == id);
-
-            return new JsonResult(snowWhite);
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Create(SnowWhiteCreateDTO model)
-        {
-            var snowWhite = await _context.SnowWhites.SingleOrDefaultAsync(x => x.FullName == model.FullName);
-            if (snowWhite != null)
-                return StatusCode(StatusCodes.Status409Conflict);
-
-            snowWhite = new SnowWhite
-            {
-                FullName = model.FullName,
-            };
-
-            _context.SnowWhites.Add(snowWhite);
-            await _context.SaveChangesAsync();
-            
-            return CreatedAtAction(nameof(GetDetails), snowWhite);
+                }).FirstOrDefaultAsync(x => x.Id == id));
         }
 
         [HttpPut]
         public async Task<IActionResult> Edit(SnowWhiteEditDTO model)
         {
+            var userId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
+
+            if (userId != model.Id)
+                return Forbid();
+
             var snowWhite = await _context.SnowWhites.SingleOrDefaultAsync(x => x.Id == model.Id);
             if (snowWhite == null)
                 return StatusCode(StatusCodes.Status404NotFound);
@@ -93,11 +81,12 @@ namespace FairyTale.API.Controllers
             return StatusCode(StatusCodes.Status204NoContent);
         }
 
-        [HttpGet("{id}/dwarfs")]
+        [HttpGet("dwarfs")]
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(DwarfDTO))]
-        public async Task<IActionResult> GetDwarfs(int id)
+        public async Task<IActionResult> GetDwarfs()
         {
-            var dwarves = await _context.Dwarfs.Where(x => x.SnowWhiteId == id)
+            var userId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
+            var dwarves = await _context.Dwarfs.Where(x => x.SnowWhiteId == userId)
                 .Select(x => new DwarfDTO
                 {
                     Id = x.Id,
@@ -107,6 +96,50 @@ namespace FairyTale.API.Controllers
                 .ToArrayAsync();
 
             return new JsonResult(dwarves);
+        }
+
+        [HttpGet("requests")]
+        public async Task<IActionResult> GetRequests()
+        {
+            var userId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
+            var requests = await _context.Requests.Where(x => x.DungeonMasterSnowWhiteId == userId)
+                .Select(x => new RequestDTO
+                {
+                    Id = x.Id,
+                    DwarfName = x.Dwarf.Name,
+                    SnowWhiteFullName = x.CreatedRequestSnowWhite.FullName
+                })
+                .ToArrayAsync();
+
+            return Ok(requests);
+        }
+
+        [HttpHead("requests/{requestId}/answer")]
+        public async Task<IActionResult> AnswerRequest(int requestId, bool accept)
+        {
+            var userId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
+            var request = await _context.Requests.SingleOrDefaultAsync(x => x.Id == requestId);
+            if (request == null)
+                return NotFound();
+
+            var dwarf = await _context.Dwarfs.SingleAsync(x => x.Id == request.DwarfId);
+
+            if (userId != dwarf.SnowWhiteId || request.IsClosed)
+                return Forbid();
+
+            request.IsClosed = true;
+            _context.Update(request);
+            await _context.SaveChangesAsync();
+
+            if (!accept)
+                return Ok();
+
+            dwarf.SnowWhiteId = request.CreatedRequestSnowWhiteId.Value;
+            _context.Update(dwarf);
+            
+            await _context.SaveChangesAsync();
+
+            return Ok();
         }
     }
 }
