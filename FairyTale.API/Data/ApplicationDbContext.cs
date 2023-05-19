@@ -7,6 +7,7 @@ namespace FairyTale.API.Data
     {
         public ApplicationDbContext(DbContextOptions options) : base(options)
         {
+            Database.EnsureCreated();
         }
 
         public DbSet<Dwarf> Dwarfs { get; set; }

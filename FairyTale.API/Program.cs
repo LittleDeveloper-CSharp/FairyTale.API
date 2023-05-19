@@ -1,10 +1,8 @@
 using FairyTale.API.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.IdentityModel.Tokens.Jwt;
 
 namespace FairyTale.API
 {
@@ -42,10 +40,10 @@ namespace FairyTale.API
                 });
             });
 
-            builder.Services.AddDbContext<ApplicationDbContext>(opts =>
-            {
-                opts.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
-            });
+            builder.Services.AddSqlite<ApplicationDbContext>(builder.Configuration.GetConnectionString("LocalDBConnection"));
+
+            builder.Services.AddCors();
+
             builder.Services.AddAuthentication()
                 .AddJwtBearer(
                 options =>

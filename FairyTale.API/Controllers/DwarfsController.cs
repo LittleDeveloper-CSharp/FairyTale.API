@@ -26,6 +26,9 @@ namespace FairyTale.API.Controllers
         public async Task<IActionResult> Get(int id)
         {
             var dwarf = await _context.Dwarfs.FirstOrDefaultAsync(dwarf => dwarf.Id == id);
+            if (dwarf == null)
+                return NotFound();
+
             return new JsonResult(new DwarfDTO
             {
                 Id = dwarf.Id,
@@ -33,7 +36,7 @@ namespace FairyTale.API.Controllers
                 Class = dwarf.Class
             });
         }
-
+        //eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiMiIsImlzcyI6Ik15QXV0aFNlcnZlciIsImF1ZCI6Ik15QXV0aENsaWVudCJ9.YHjixUSZOfo2Y5Bxcz9raflpyB4tNm2YMvFa17bqgA0
         [HttpPost]
         public async Task<IActionResult> Post(DwarfCreateDTO model)
         {
@@ -65,6 +68,9 @@ namespace FairyTale.API.Controllers
             }
 
             var dwarf = await _context.Dwarfs.FirstOrDefaultAsync(dwarf => dwarf.Id == id);
+            if (dwarf == null)
+                return NotFound();
+
             _context.Dwarfs.Remove(dwarf);
             await _context.SaveChangesAsync();
 
@@ -79,6 +85,9 @@ namespace FairyTale.API.Controllers
                 return StatusCode(StatusCodes.Status400BadRequest);
             }
             var dwarf = await _context.Dwarfs.FirstOrDefaultAsync(dwarf => dwarf.Id == id);
+            if (dwarf == null)
+                return NotFound();
+
             dwarf.Name = model.Name;
             dwarf.Class = model.Class;
 

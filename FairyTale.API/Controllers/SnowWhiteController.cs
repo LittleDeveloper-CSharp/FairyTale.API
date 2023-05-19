@@ -1,5 +1,4 @@
 ﻿using FairyTale.API.Data;
-using FairyTale.API.Models;
 using FairyTale.API.Models.DTOs;
 using FairyTale.API.Models.DTOs.DwarfDTOs;
 using FairyTale.API.Models.DTOs.SnowWhiteDTOs;
@@ -30,7 +29,7 @@ namespace FairyTale.API.Controllers
             var snowWhiteId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
 
             return new JsonResult(await _context.SnowWhites
-                .Where(x=> x.Id != snowWhiteId)
+                .Where(x => x.Id != snowWhiteId)
                 .Select(x => new SnowWhiteDTO
                 {
                     FullName = x.FullName,
@@ -97,7 +96,7 @@ namespace FairyTale.API.Controllers
         public async Task<IActionResult> GetRequests()
         {
             var snowWhiteId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
-            var requests = await _context.Requests.Where(x => x.DungeonMasterSnowWhiteId == snowWhiteId)
+            var requests = await _context.Requests.Where(x => x.DungeonMasterSnowWhiteId == snowWhiteId && !x.IsClosed)
                 .Select(x => new RequestDTO
                 {
                     Id = x.Id,
@@ -112,38 +111,45 @@ namespace FairyTale.API.Controllers
         [HttpHead("requests/{requestId}/answer")]
         public async Task<IActionResult> AnswerRequest(int requestId, bool accept)
         {
-            var snowWhiteId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
-            var request = await _context.Requests.SingleOrDefaultAsync(x => x.Id == requestId);
-            if (request == null)
-                return NotFound();
-
-            var dwarf = await _context.Dwarfs.SingleAsync(x => x.Id == request.DwarfId);
-
-            if (snowWhiteId != dwarf.SnowWhiteId || request.IsClosed)
-                return Forbid();
-
-            request.IsClosed = true;
-            _context.Update(request);
-            await _context.SaveChangesAsync();
-
-            if (!accept)
-                return Ok();
-
-            var requests = await _context.Requests.Where(x => x.DwarfId == dwarf.Id && x.IsClosed)
-                .ToArrayAsync();
-            Array.ForEach(requests, x =>
+            try
             {
-                x.IsClosed = true;
-            });
+                var snowWhiteId = Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == ClaimsIdentity.DefaultNameClaimType)?.Value);
+                var request = await _context.Requests.SingleOrDefaultAsync(x => x.Id == requestId);
+                if (request == null)
+                    return NotFound();
 
-            dwarf.SnowWhiteId = request.CreatedRequestSnowWhiteId.Value; 
-            
-            _context.UpdateRange(requests);
-            _context.Update(dwarf);
-            
-            await _context.SaveChangesAsync();
+                var dwarf = await _context.Dwarfs.SingleAsync(x => x.Id == request.DwarfId);
 
-            return Ok();
+                if (snowWhiteId != dwarf.SnowWhiteId || request.IsClosed)
+                    return Forbid();
+
+                request.IsClosed = true;
+                _context.Update(request);
+                await _context.SaveChangesAsync();
+
+                if (!accept)
+                    return Ok();
+
+                var requests = await _context.Requests.Where(x => x.DwarfId == dwarf.Id && !x.IsClosed)
+                    .ToArrayAsync();
+                Array.ForEach(requests, x =>
+                {
+                    x.IsClosed = true;
+                });
+
+                dwarf.SnowWhiteId = request.CreatedRequestSnowWhiteId.Value;
+
+                _context.UpdateRange(requests);
+                _context.Update(dwarf);
+
+                await _context.SaveChangesAsync();
+
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex);
+            }
         }
     }
 }
