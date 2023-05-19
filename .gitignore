@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/FairyTale.API/SnowWhiteDB.db-wal
+/FairyTale.API/SnowWhiteDB.db-shm
+/FairyTale.API/SnowWhiteDB.db
