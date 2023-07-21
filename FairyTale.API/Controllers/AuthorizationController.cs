@@ -29,7 +29,7 @@ namespace FairyTale.API.Controllers
             {
                 var user = await _context.Users
                     .Include(x=> x.SnowWhite)
-                    .SingleOrDefaultAsync(x=> x.Password == model.Password && x.Login == x.Login);
+                    .SingleOrDefaultAsync(x=> x.Password == model.Password && x.Login == model.Login);
 
                 if (user == null)
                 {
