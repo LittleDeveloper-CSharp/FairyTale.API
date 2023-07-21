@@ -73,7 +73,7 @@ namespace FairyTale.API.Controllers
 
             var userExists = await _context.Users.AnyAsync(x=> x.Login == registration.Login);
             if (userExists)
-                return StatusCode(StatusCodes.Status402PaymentRequired);
+                return StatusCode(StatusCodes.Status409Conflict);
 
             _context.Users.Add(new Models.User
             {
