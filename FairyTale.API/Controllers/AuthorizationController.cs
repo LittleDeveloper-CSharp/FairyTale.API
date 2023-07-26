@@ -65,7 +65,7 @@ namespace FairyTale.API.Controllers
             }
         }
 
-        [HttpPost("registation")]
+        [HttpPost("registration")]
         public async Task<IActionResult> Registration(RegistrationDTO registration)
         {
             if(!ModelState.IsValid)
